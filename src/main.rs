@@ -3,6 +3,7 @@ use std::fmt::{Debug, Display};
 use std::io::{self, Write};
 use std::ops::{Add, Div, Mul, Sub};
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum Operator {
     Add,
     Sub,
@@ -10,34 +11,19 @@ enum Operator {
     Div,
     Pow,
 }
-impl Debug for Operator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Operator::Add => write!(f, "Add"),
-            Operator::Sub => write!(f, "Sub"),
-            Operator::Mul => write!(f, "Mul"),
-            Operator::Div => write!(f, "Div"),
-            Operator::Pow => write!(f, "Pow"),
-        }
-    }
-}
 
-impl Copy for Operator {}
-impl Clone for Operator {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl PartialEq for Operator {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Operator::Add, Operator::Add) => true,
-            (Operator::Sub, Operator::Sub) => true,
-            (Operator::Mul, Operator::Mul) => true,
-            (Operator::Div, Operator::Div) => true,
-            (Operator::Pow, Operator::Pow) => true,
-            _ => false,
+impl Operator {
+    pub fn get_priority(&self) -> u8 {
+        match self {
+            Operator::Add | Operator::Sub => 1,
+            Operator::Mul | Operator::Div => 2,
+            Operator::Pow => 3,
         }
+    }
+
+    /// true if operator is right-associative (e.g. exponentiation)
+    pub fn is_right_associative(&self) -> bool {
+        matches!(self, Operator::Pow)
     }
 }
 
@@ -61,21 +47,6 @@ impl TryFrom<&str> for Operator {
     }
 }
 
-impl Operator {
-    pub fn get_priority(&self) -> u8 {
-        match self {
-            Operator::Add | Operator::Sub => 1,
-            Operator::Mul | Operator::Div => 2,
-            Operator::Pow => 3,
-        }
-    }
-
-    /// true if operator is right-associative (e.g. exponentiation)
-    pub fn is_right_associative(&self) -> bool {
-        matches!(self, Operator::Pow)
-    }
-}
-
 impl Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Use unicode symbols in output to match the expected test string
@@ -89,23 +60,8 @@ impl Display for Operator {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct Operand(f64);
-impl Debug for Operand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Operand({})", self.0)
-    }
-}
-impl Clone for Operand {
-    fn clone(&self) -> Self {
-        Operand(self.0)
-    }
-}
-impl Copy for Operand {}
-impl PartialEq for Operand {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
 
 impl Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -155,42 +111,12 @@ impl Div for Operand {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Token {
     Operand(Operand),
     Operator(Operator),
     LeftParen,
     RightParen,
-}
-impl PartialEq for Token {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Token::Operand(op1), Token::Operand(op2)) => op1 == op2,
-            (Token::Operator(op1), Token::Operator(op2)) => op1 == op2,
-            (Token::LeftParen, Token::LeftParen) => true,
-            (Token::RightParen, Token::RightParen) => true,
-            _ => false,
-        }
-    }
-}
-impl Clone for Token {
-    fn clone(&self) -> Self {
-        match self {
-            Token::Operand(op) => Token::Operand(op.clone()),
-            Token::Operator(op) => Token::Operator(op.clone()),
-            Token::LeftParen => Token::LeftParen,
-            Token::RightParen => Token::RightParen,
-        }
-    }
-}
-impl Debug for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Token::Operand(op) => write!(f, "Operand({:?})", op),
-            Token::Operator(op) => write!(f, "Operator({:?})", op),
-            Token::LeftParen => write!(f, "LeftParen"),
-            Token::RightParen => write!(f, "RightParen"),
-        }
-    }
 }
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -226,18 +152,8 @@ impl TryFrom<&str> for Token {
 }
 
 /// TokenStack: a FIFO queue of Token. push_back appends, iteration consumes from front.
+#[derive(Clone, Debug)]
 struct TokenStack(VecDeque<Token>);
-impl Clone for TokenStack {
-    fn clone(&self) -> Self {
-        TokenStack(self.0.clone())
-    }
-}
-
-impl Debug for TokenStack {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TokenStack({:?})", self.0)
-    }
-}
 
 impl TokenStack {
     fn new() -> Self {
