@@ -82,8 +82,8 @@ impl Display for Operator {
         match self {
             Operator::Add => write!(f, "+"),
             Operator::Sub => write!(f, "−"),
-            Operator::Mul => write!(f, "*"),
-            Operator::Div => write!(f, "/"),
+            Operator::Mul => write!(f, "×"),
+            Operator::Div => write!(f, "÷"),
             Operator::Pow => write!(f, "^"),
         }
     }
@@ -490,5 +490,42 @@ fn main() {
             }
             Err(e) => eprintln!("Err Shunting‑Yard: {}", e),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_given_expression_rpn_matches_expected() {
+        let expr = "3 + 4 × 2 ÷ ( 1 − 5 ) ^ 2 ^ 3";
+        let tokens = split_into_tokens(expr);
+        assert!(!tokens.is_empty(), "Tokenization failed");
+
+        let rpn = shunting_yard(&tokens).expect("shunting_yard failed");
+        let out = rpn.join(" ");
+        let expected = "3 4 2 × 1 5 − 2 3 ^ ^ ÷ +";
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_eval_rpn_numeric_result() {
+        // Same expression as above; numeric result should be 3.0001220703125
+        let expr = "3 + 4 × 2 ÷ ( 1 − 5 ) ^ 2 ^ 3";
+        let tokens = split_into_tokens(expr);
+        let rpn = shunting_yard(&tokens).expect("shunting_yard failed");
+
+        // Evaluate RPN and check numeric result within a small tolerance
+        let result = eval_rpn(&rpn).expect("eval_rpn failed");
+        let expected = 3.0001220703125_f64;
+        let diff = (result.0 - expected).abs();
+        assert!(
+            diff < 1e-12,
+            "Numeric result differs: got {}, expected {}, diff {}",
+            result.0,
+            expected,
+            diff
+        );
     }
 }
