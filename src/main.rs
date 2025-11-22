@@ -320,7 +320,7 @@ fn shunting_yard(tokens: &[String]) -> Result<TokenStack, String> {
 /// - operatore senza abbastanza operandi -> errore (stack insufficiente)
 /// - divisione per zero -> errore
 /// - presenza di parentesi in RPN -> errore (non dovrebbero comparire)
-fn eval_rpn(rpn: &TokenStack) -> Result<Operand, String> {
+fn eval_reverse_polish_notation(rpn: &TokenStack) -> Result<Operand, String> {
     let mut stack: Vec<Operand> = Vec::new();
 
     // Iteriamo consumando una copia della coda RPN (in ordine FIFO)
@@ -399,7 +399,7 @@ fn main() {
         match shunting_yard(&tokens) {
             Ok(rpn) => {
                 println!("RPN : {}", rpn.join(" "));
-                match eval_rpn(&rpn) {
+                match eval_reverse_polish_notation(&rpn) {
                     Ok(res) => println!("Res = {}", res),
                     Err(e) => eprintln!("Err = {}", e),
                 }
@@ -433,7 +433,7 @@ mod tests {
         let rpn = shunting_yard(&tokens).expect("shunting_yard failed");
 
         // Evaluate RPN and check numeric result within a small tolerance
-        let result = eval_rpn(&rpn).expect("eval_rpn failed");
+        let result = eval_reverse_polish_notation(&rpn).expect("eval_rpn failed");
         let expected = 3.0001220703125_f64;
         let diff = (result.0 - expected).abs();
         assert!(
@@ -441,6 +441,58 @@ mod tests {
             "Numeric result differs: got {}, expected {}, diff {}",
             result.0,
             expected,
+            diff
+        );
+    }
+
+    // New tests for the user's provided expressions:
+    // 1) ((10 * 2) + (4 - 5)) / 2  -> RPN: 10 2 * 4 5 - + 2 /
+    // 2) (7 / 3) / ((1 - 4) * 2) + 1 -> RPN: 7 3 / 1 4 - 2 * / 1 +
+    //
+    // Note: Operator Display uses Unicode symbols (×, ÷, −), so expected RPN strings below
+    // use those symbols.
+    #[test]
+    fn test_expr1_rpn_and_eval() {
+        let expr = "( ( 10 * 2 ) + ( 4 - 5 ) ) / 2";
+        let tokens = split_into_tokens(expr);
+        let rpn = shunting_yard(&tokens).expect("shunting_yard failed for expr1");
+        let out = rpn.join(" ");
+        // Using Unicode operator symbols as produced by Token::Display
+        let expected_rpn = "10 2 × 4 5 − + 2 ÷";
+        assert_eq!(out, expected_rpn, "RPN mismatch for expr1");
+
+        // Evaluate numeric result: ((10*2) + (4-5)) / 2 = 9.5
+        let result = eval_reverse_polish_notation(&rpn).expect("eval_rpn failed for expr1");
+        let expected_value = 9.5_f64;
+        let diff = (result.0 - expected_value).abs();
+        assert!(
+            diff < 1e-12,
+            "Numeric result differs for expr1: got {}, expected {}, diff {}",
+            result.0,
+            expected_value,
+            diff
+        );
+    }
+
+    #[test]
+    fn test_expr2_rpn_and_eval() {
+        let expr = "( 7 / 3 ) / ( ( 1 - 4 ) * 2 ) + 1";
+        let tokens = split_into_tokens(expr);
+        let rpn = shunting_yard(&tokens).expect("shunting_yard failed for expr2");
+        let out = rpn.join(" ");
+        // Expected RPN using Unicode operator symbols
+        let expected_rpn = "7 3 ÷ 1 4 − 2 × ÷ 1 +";
+        assert_eq!(out, expected_rpn, "RPN mismatch for expr2");
+
+        // Numeric evaluation: (7/3) / ((1-4)*2) + 1 = 11/18 ≈ 0.6111111111111111
+        let result = eval_reverse_polish_notation(&rpn).expect("eval_rpn failed for expr2");
+        let expected_value = 11.0_f64 / 18.0_f64;
+        let diff = (result.0 - expected_value).abs();
+        assert!(
+            diff < 1e-12,
+            "Numeric result differs for expr2: got {}, expected {}, diff {}",
+            result.0,
+            expected_value,
             diff
         );
     }
